@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #6525e5; /* Yellow background color */
+      font-family: Arial, sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+    }
+
+    #game-area {
+      position: relative;
+      width: 1100px; /* Width of the game area */
+      height: 620px; /* Height of the game area */
+      border: 5px solid #eef606; /* Thin brown border for the rectangular game area */
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #score-container {
+      position: top;
+      top: 10px;
+      left: 10px;
+      color: #333;
+      font-size: 18px;
+    }
+
+    #fake-food-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      color: #FF9900;
+      display: none;
+    }
+
+    .snake-segment {
+      background-color: #ec3a1b;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="game-area">
+      <div id="fake-food-icon">&#9881;</div>
+      <canvas id="gameCanvas" width="400" height="400"></canvas>
+    </div>
+    <div id="score-container">Score: <span id="score">0</span> | Highest Score: <span id="highest-score">0</span></div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreDisplay = document.getElementById("score");
+      const highestScoreDisplay = document.getElementById("highest-score");
+      const fakeFoodIcon = document.getElementById("fake-food-icon");
+
+      const GRID_SIZE = 20;
+      const GRID_WIDTH = canvas.width / GRID_SIZE;
+      const GRID_HEIGHT = canvas.height / GRID_SIZE;
+
+      const UP = { x: 0, y: -1 };
+      const DOWN = { x: 0, y: 1 };
+      const LEFT = { x: -1, y: 0 };
+      const RIGHT = { x: 1, y: 0 };
+
+      const snake = {
+        body: [
+          { x: 10, y: 10 },
+        ],
+        direction: RIGHT,
+        newDirection: RIGHT,
+        speed: 10
+      };
+
+      let food = { x: 15, y: 15 };
+      let fakeFood = { x: GRID_WIDTH / 2, y: GRID_HEIGHT / 2 }; // Fake food in the middle
+
+      let score = 0;
+      let highestScore = localStorage.getItem("highestScore") || 0;
+      let gameLoop;
+
+      function draw() {
+        // Clear the canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw snake
+        snake.body.forEach((segment) => {
+          ctx.fillStyle = "#4CAF50";
+          ctx.beginPath();
+          ctx.arc((segment.x * GRID_SIZE) + (GRID_SIZE / 2), (segment.y * GRID_SIZE) + (GRID_SIZE / 2), GRID_SIZE / 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Draw rectangle-shaped food
+        ctx.fillStyle = "#FF0000";
+        ctx.fillRect(food.x * GRID_SIZE, food.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+
+        // Draw fake food icon
+        fakeFoodIcon.style.display = score % 5 === 0 ? "block" : "none";
+
+        // Draw score
+        scoreDisplay.textContent = score;
+        highestScoreDisplay.textContent = highestScore;
+      }
+
+      function update() {
+        // Change direction if valid
+        if (Math.abs(snake.direction.x) !== Math.abs(snake.newDirection.x) || Math.abs(snake.direction.y) !== Math.abs(snake.newDirection.y)) {
+          snake.direction = snake.newDirection;
+        }
+
+        // Move snake
+        const head = { x: snake.body[0].x + snake.direction.x, y: snake.body[0].y + snake.direction.y };
+        snake.body.unshift(head);
+
+        // Check if snake eats food or fake food
+        if (head.x === food.x && head.y === food.y) {
+          score++;
+          if (score > highestScore) {
+            highestScore = score;
+            localStorage.setItem("highestScore", highestScore);
+          }
+          food = { x: Math.floor(Math.random() * GRID_WIDTH), y: Math.floor(Math.random() * GRID_HEIGHT) };
+        } else if (head.x === fakeFood.x && head.y === fakeFood.y) {
+          gameOver();
+          return; // Stop the update if the snake eats fake food
+        } else {
+          snake.body.pop();
+        }
+
+        // Check if snake collides with itself or the walls
+        if (head.x < 0 || head.x >= GRID_WIDTH || head.y < 0 || head.y >= GRID_HEIGHT || snake.body.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+          gameOver();
+        }
+      }
+
+      function gameOver() {
+        clearInterval(gameLoop);
+        alert(`Game Over! Your score: ${score}`);
+        resetGame();
+      }
+
+      function resetGame() {
+        snake.body = [
+          { x: 10, y: 10 },
+        ];
+        snake.direction = RIGHT;
+        snake.newDirection = RIGHT;
+        score = 0;
+        gameLoop = setInterval(() => {
+          update();
+          draw();
+        }, 1000 / snake.speed);
+      }
+
+      function handleKeyDown(event) {
+        switch (event.key) {
+          case "ArrowUp":
+          case "w":
+            snake.newDirection = UP;
+            break;
+          case "ArrowDown":
+          case "s":
+            snake.newDirection = DOWN;
+            break;
+          case "ArrowLeft":
+          case "a":
+            snake.newDirection = LEFT;
+            break;
+          case "ArrowRight":
+          case "d":
+            snake.newDirection = RIGHT;
+            break;
+          default:
+            break;
+        }
+      }
+
+      // Initialize game
+      resetGame();
+      document.addEventListener("keydown", handleKeyDown);
+    });
+  </script>
+</body>
+</html>
